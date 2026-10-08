@@ -1,0 +1,96 @@
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: notifier
+      RABBITMQ_DEFAULT_PASS: notifier
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  notifier:
+    build: .
+    environment:
+      AMQP_URL: amqp://notifier:notifier@rabbitmq:5672/
+      LOG_LEVEL: INFO
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      EVOLUTION_URL: http://evolution-api:8080
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
+      EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      evolution-api:
+        condition: service_started
+    restart: unless-stopped
+
+  api:
+    build: .
+    command: ["uv", "run", "--no-sync", "uvicorn", "notifier.api:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      LOG_LEVEL: INFO
+      AMQP_URL: amqp://notifier:notifier@rabbitmq:5672/
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      EVOLUTION_URL: http://evolution-api:8080
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
+      EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  evolution-api:
+    image: evoapicloud/evolution-api:latest
+    environment:
+      SERVER_URL: http://localhost:8080
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:?set EVOLUTION_API_KEY in .env}
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evolution:evolution@evolution-postgres:5432/evolution?schema=evolution_api
+      DATABASE_CONNECTION_CLIENT_NAME: evolution_exchange
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://evolution-redis:6379/6
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_LOCAL_ENABLED: "false"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+    depends_on:
+      evolution-postgres:
+        condition: service_healthy
+      evolution-redis:
+        condition: service_started
+    restart: unless-stopped
+
+  evolution-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: evolution
+      POSTGRES_DB: evolution
+    volumes:
+      - evolution_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evolution"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  evolution-redis:
+    image: redis:7
+    volumes:
+      - evolution_redis:/data
+    restart: unless-stopped
+
+volumes:
+  evolution_instances:
+  evolution_pg:
+  evolution_redis:

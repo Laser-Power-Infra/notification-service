@@ -1,0 +1,17 @@
+# Secrets
+.env
+
+# Python / uv
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Superpowers scratch
+.superpowers/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
