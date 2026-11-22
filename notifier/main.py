@@ -50,8 +50,10 @@ def build_senders(settings: Settings, http: httpx.AsyncClient) -> tuple[dict, di
 async def run(settings: Settings, http: httpx.AsyncClient | None = None,
               stop: asyncio.Event | None = None) -> None:
     if not settings.configured_platforms():
-        raise ValueError("no platform configured: set TELEGRAM_BOT_TOKEN and/or "
-                         "EVOLUTION_URL, EVOLUTION_API_KEY, EVOLUTION_INSTANCE")
+        # Allowed so the worker can run locally without credentials; every message is then dropped
+        # as "platform not configured".
+        log.warning("no platform configured: set TELEGRAM_BOT_TOKEN and/or "
+                    "EVOLUTION_URL, EVOLUTION_API_KEY, EVOLUTION_INSTANCE")
     if stop is None:
         stop = asyncio.Event()
         loop = asyncio.get_running_loop()

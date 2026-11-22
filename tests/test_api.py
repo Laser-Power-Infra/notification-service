@@ -173,3 +173,93 @@ async def test_test_route_errors(publish, kw, status, detail):
     async with api(lambda r: httpx.Response(500), publish=publish, **kw) as c:
         r = await c.post("/telegram/test", json={"chat_id": 1})
     assert r.status_code == status and r.json() == {"detail": detail}
+
+
+GROUP = "120363431318894759@g.us"
+
+
+def _record(i, ts, message, **key):
+    return {"key": {"id": f"M{i}", "fromMe": False, "remoteJid": GROUP, **key},
+            "pushName": f"User {i}", "messageType": next(iter(message)), "message": message,
+            "messageTimestamp": ts}
+
+
+async def test_get_whatsapp_group_messages_paginates_and_maps():
+    seen = []
+    pages = {
+        1: [_record(1, 1795229004, {"imageMessage": {"caption": "boiler 82C"}},
+                    participant="1@lid", participantAlt="919999999999@s.whatsapp.net")],
+        2: [_record(2, 1795224491, {"conversation": "hello"}, participant="2@lid"),
+            _record(3, 1795224000, {"extendedTextMessage": {"text": "link"}})],
+    }
+
+    def handler(request):
+        body = json.loads(request.content)
+        seen.append(body)
+        return httpx.Response(200, json={"messages": {"total": 3, "pages": 2, "currentPage": body["page"],
+                                                      "records": pages[body["page"]]}})
+
+    async with api(handler) as c:
+        r = await c.get(f"/whatsapp/groups/{GROUP}/messages", params={"start": "2026-11-01", "end": "2026-11-20"})
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["count"] == 3 and data["group_id"] == GROUP
+    assert [m["text"] for m in data["messages"]] == ["link", "hello", "boiler 82C"]  # oldest first
+    first = data["messages"][-1]
+    assert first["sender"] == "919999999999@s.whatsapp.net" and first["sender_name"] == "User 1"
+    assert first["type"] == "imageMessage" and first["timestamp"].endswith("+05:30")
+    assert [b["page"] for b in seen] == [1, 2]
+    where = seen[0]["where"]
+    assert where["key"] == {"remoteJid": GROUP}
+    assert where["messageTimestamp"]["gte"] == "2026-11-01T00:00:00+05:30"
+    assert where["messageTimestamp"]["lte"].startswith("2026-11-20T23:59:59")
+
+
+@pytest.mark.parametrize("params, detail", [
+    ({"start": "2026-11-20", "end": "2026-11-01"}, "start must be before end"),
+    ({"start": "yesterday", "end": "2026-11-01"}, "invalid date 'yesterday': use YYYY-MM-DD or YYYY-MM-DDTHH:MM"),
+])
+async def test_get_whatsapp_group_messages_rejects_bad_range(params, detail):
+    async with api(lambda r: httpx.Response(500)) as c:
+        r = await c.get(f"/whatsapp/groups/{GROUP}/messages", params=params)
+    assert r.status_code == 422 and r.json() == {"detail": detail}
+
+
+async def test_get_whatsapp_group_messages_rejects_non_group():
+    async with api(lambda r: httpx.Response(500)) as c:
+        r = await c.get("/whatsapp/groups/919999999999@s.whatsapp.net/messages",
+                        params={"start": "2026-11-01", "end": "2026-11-02"})
+    assert r.status_code == 422
+
+
+async def test_get_whatsapp_group_messages_upstream_error():
+    async with api(lambda r: httpx.Response(200, json={"error": "x"})) as c:
+        r = await c.get(f"/whatsapp/groups/{GROUP}/messages", params={"start": "2026-11-01", "end": "2026-11-02"})
+    assert r.status_code == 502 and r.json() == {"detail": "whatsapp: unexpected response"}
+
+
+@pytest.mark.parametrize("params, expected", [
+    ({}, None),
+    ({"start": "2026-11-10"}, ("2026-11-10T00:00:00+05:30", "2100-01-01T00:00:00+00:00")),
+    ({"end": "2026-11-10"}, ("1970-01-01T00:00:00+00:00", "2026-11-10T23:59:59.999999+05:30")),
+])
+async def test_get_whatsapp_group_messages_optional_range(params, expected):
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content))
+        return httpx.Response(200, json={"messages": {"pages": 1, "records": []}})
+
+    async with api(handler) as c:
+        r = await c.get(f"/whatsapp/groups/{GROUP}/messages", params=params)
+    assert r.status_code == 200 and r.json()["count"] == 0
+    ts = seen[0]["where"].get("messageTimestamp")
+    assert (ts and (ts["gte"], ts["lte"])) == expected
+
+
+async def test_cors_allows_evolution_manager_origin():
+    async with api(lambda r: httpx.Response(500)) as c:
+        ok = await c.get("/health", headers={"Origin": "http://127.0.0.1:8080"})
+        other = await c.get("/health", headers={"Origin": "http://evil.example"})
+    assert ok.headers["access-control-allow-origin"] == "http://127.0.0.1:8080"
+    assert "access-control-allow-origin" not in other.headers

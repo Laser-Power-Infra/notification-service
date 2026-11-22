@@ -18,6 +18,8 @@ class ApiSettings(BaseSettings):
     evolution_api_key: SecretStr | None = None
     evolution_instance: str | None = None
     log_level: str = "INFO"
+    # Browser origins allowed to call the API (the Evolution Manager's "My Endpoints" panel), comma-separated.
+    cors_origins: str = "http://127.0.0.1:8080,http://localhost:8080"
 
     def missing_for(self, platform: str) -> list[str]:
         return [name.upper() for name in _REQUIRED[platform] if getattr(self, name) is None]
