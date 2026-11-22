@@ -12,21 +12,21 @@ RabbitMQ comes from the infrastructure repo (`rabbitmq-prod` on the external `in
 | Service | URL |
 |---|---|
 | RabbitMQ management | http://localhost:15672 (shared `rabbitmq-prod` from the infrastructure repo) |
-| Lookup API docs | http://127.0.0.1:8000/docs |
-| Evolution manager | http://127.0.0.1:8080/manager |
+| Lookup API docs | http://127.0.0.1:6025/docs |
+| Evolution manager | http://127.0.0.1:6026/manager |
 
 Secrets live in `.env` (git-ignored): `TELEGRAM_BOT_TOKEN`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE`, and `RABBITMQ_USER` / `RABBITMQ_PASSWORD` (the infra RabbitMQ login; URL-encode special characters in the password). `EVOLUTION_API_KEY` is a value you choose (any long random string); Evolution starts with it as its global key. Compose refuses to start without it.
 
 ## Link WhatsApp (once)
 
-1. Open http://127.0.0.1:8080/manager and log in with `EVOLUTION_API_KEY` from `.env`.
+1. Open http://127.0.0.1:6026/manager and log in with `EVOLUTION_API_KEY` from `.env`.
 2. Create an instance named exactly as `EVOLUTION_INSTANCE` (default `notifier`), engine Baileys.
 3. Click connect and scan the QR code with WhatsApp (Linked devices).
 
 ## Find recipient IDs
 
-- Telegram: `GET http://127.0.0.1:8000/telegram/chats`. Message the bot first (in groups send `/start@<bot>`); only the last ~24 h are visible. If `migrated_to` is set, the group was upgraded: use that ID.
-- WhatsApp groups: `GET http://127.0.0.1:8000/whatsapp/groups`, use `group_id`. Individual chats: phone number with country code, digits only.
+- Telegram: `GET http://127.0.0.1:6025/telegram/chats`. Message the bot first (in groups send `/start@<bot>`); only the last ~24 h are visible. If `migrated_to` is set, the group was upgraded: use that ID.
+- WhatsApp groups: `GET http://127.0.0.1:6025/whatsapp/groups`, use `group_id`. Individual chats: phone number with country code, digits only.
 
 ## Publish
 
@@ -54,8 +54,8 @@ There are two queues: `notifications` (all platforms) and `notifications.retry`.
 
 ## Send a test message
 
-    curl -X POST http://127.0.0.1:8000/telegram/test -H 'content-type: application/json' -d '{"chat_id": -1004317452395}'
-    curl -X POST http://127.0.0.1:8000/whatsapp/test -H 'content-type: application/json' -d '{"to": "919876543210"}'
+    curl -X POST http://127.0.0.1:6025/telegram/test -H 'content-type: application/json' -d '{"chat_id": -1004317452395}'
+    curl -X POST http://127.0.0.1:6025/whatsapp/test -H 'content-type: application/json' -d '{"to": "919876543210"}'
 
 Both accept an optional `text` (Telegram also `parse_mode`), publish through RabbitMQ and return `202` with the `id`. Follow it with `docker compose logs -f notifier`.
 

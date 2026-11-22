@@ -27,14 +27,14 @@ services:
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
       EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-}
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:6025:8000"
     networks: [default, infra]
     restart: unless-stopped
 
   evolution-api:
     image: evoapicloud/evolution-api:latest
     environment:
-      SERVER_URL: http://localhost:8080
+      SERVER_URL: http://localhost:6026
       AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:?set EVOLUTION_API_KEY in .env}
       DATABASE_PROVIDER: postgresql
       DATABASE_CONNECTION_URI: postgresql://evolution:evolution@evolution-postgres:5432/evolution?schema=evolution_api
@@ -44,7 +44,7 @@ services:
       CACHE_REDIS_PREFIX_KEY: evolution
       CACHE_LOCAL_ENABLED: "false"
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:6026:8080"
     volumes:
       - evolution_instances:/evolution/instances
     depends_on:

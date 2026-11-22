@@ -3,7 +3,7 @@
 // read live from its /openapi.json, plus ready-made message URLs for every WhatsApp group.
 (() => {
   const STORE_KEY = "myEndpoints.apiBase";
-  const DEFAULT_BASE = "http://127.0.0.1:8000";
+  const DEFAULT_BASE = `${location.protocol}//${location.hostname}:6025`;
   const NAV_ID = "my-endpoints-nav";
   const PANEL_ID = "my-endpoints-panel";
 

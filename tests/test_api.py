@@ -259,7 +259,7 @@ async def test_get_whatsapp_group_messages_optional_range(params, expected):
 
 async def test_cors_allows_evolution_manager_origin():
     async with api(lambda r: httpx.Response(500)) as c:
-        ok = await c.get("/health", headers={"Origin": "http://127.0.0.1:8080"})
+        ok = await c.get("/health", headers={"Origin": "http://127.0.0.1:6026"})
         other = await c.get("/health", headers={"Origin": "http://evil.example"})
-    assert ok.headers["access-control-allow-origin"] == "http://127.0.0.1:8080"
+    assert ok.headers["access-control-allow-origin"] == "http://127.0.0.1:6026"
     assert "access-control-allow-origin" not in other.headers
