@@ -4,15 +4,18 @@ RabbitMQ consumers that deliver notifications to Telegram and WhatsApp (via Evol
 
 ## Run
 
-    docker compose up -d --build --remove-orphans
+RabbitMQ comes from the infrastructure repo (`rabbitmq-prod` on the external `infra` Docker network); start that first:
+
+    cd ../infrastructure && docker compose up -d rabbitmq
+    cd ../notification-service && docker compose up -d --build --remove-orphans
 
 | Service | URL |
 |---|---|
-| RabbitMQ management | http://localhost:15672 (notifier / notifier) |
+| RabbitMQ management | http://localhost:15672 (shared `rabbitmq-prod` from the infrastructure repo) |
 | Lookup API docs | http://127.0.0.1:8000/docs |
 | Evolution manager | http://127.0.0.1:8080/manager |
 
-Secrets live in `.env` (git-ignored): `TELEGRAM_BOT_TOKEN`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE`. `EVOLUTION_API_KEY` is a value you choose (any long random string); Evolution starts with it as its global key. Compose refuses to start without it.
+Secrets live in `.env` (git-ignored): `TELEGRAM_BOT_TOKEN`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE`, and `RABBITMQ_USER` / `RABBITMQ_PASSWORD` (the infra RabbitMQ login; URL-encode special characters in the password). `EVOLUTION_API_KEY` is a value you choose (any long random string); Evolution starts with it as its global key. Compose refuses to start without it.
 
 ## Link WhatsApp (once)
 
@@ -59,6 +62,6 @@ Both accept an optional `text` (Telegram also `parse_mode`), publish through Rab
 ## Develop
 
     uv sync
-    docker compose up -d rabbitmq
+    (cd ../infrastructure && docker compose up -d rabbitmq)
     docker compose stop notifier   # a running worker would consume the test messages
     uv run pytest

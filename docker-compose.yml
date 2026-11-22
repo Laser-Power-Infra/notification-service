@@ -1,32 +1,19 @@
+# RabbitMQ is not defined here: the worker and API use the shared one from the infrastructure repo
+# (container rabbitmq-prod on the external "infra" network). Start infrastructure first.
 services:
-  rabbitmq:
-    image: rabbitmq:4-management
-    environment:
-      RABBITMQ_DEFAULT_USER: notifier
-      RABBITMQ_DEFAULT_PASS: notifier
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-
   notifier:
     build: .
     environment:
-      AMQP_URL: amqp://notifier:notifier@rabbitmq:5672/
+      AMQP_URL: amqp://${RABBITMQ_USER:?set RABBITMQ_USER in .env}:${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}@rabbitmq-prod:5672/
       LOG_LEVEL: INFO
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       EVOLUTION_URL: http://evolution-api:8080
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
       EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-}
     depends_on:
-      rabbitmq:
-        condition: service_healthy
       evolution-api:
         condition: service_started
+    networks: [default, infra]
     restart: unless-stopped
 
   api:
@@ -34,16 +21,14 @@ services:
     command: ["uv", "run", "--no-sync", "uvicorn", "notifier.api:app", "--host", "0.0.0.0", "--port", "8000"]
     environment:
       LOG_LEVEL: INFO
-      AMQP_URL: amqp://notifier:notifier@rabbitmq:5672/
+      AMQP_URL: amqp://${RABBITMQ_USER:?set RABBITMQ_USER in .env}:${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}@rabbitmq-prod:5672/
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       EVOLUTION_URL: http://evolution-api:8080
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
       EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-}
     ports:
       - "127.0.0.1:8000:8000"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+    networks: [default, infra]
     restart: unless-stopped
 
   evolution-api:
@@ -94,3 +79,7 @@ volumes:
   evolution_instances:
   evolution_pg:
   evolution_redis:
+
+networks:
+  infra:
+    external: true
