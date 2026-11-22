@@ -7,7 +7,7 @@ services:
       AMQP_URL: amqp://${RABBITMQ_USER:?set RABBITMQ_USER in .env}:${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}@rabbitmq-prod:5672/
       LOG_LEVEL: INFO
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      EVOLUTION_URL: http://evolution-api:8080
+      EVOLUTION_URL: http://evolution-api:6026
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
       EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-}
     depends_on:
@@ -18,16 +18,17 @@ services:
 
   api:
     build: .
-    command: ["uv", "run", "--no-sync", "uvicorn", "notifier.api:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["uv", "run", "--no-sync", "uvicorn", "notifier.api:app", "--host", "0.0.0.0", "--port", "6025"]
     environment:
       LOG_LEVEL: INFO
+      CORS_ORIGINS: http://192.168.1.190:6026,http://127.0.0.1:6026,http://localhost:6026
       AMQP_URL: amqp://${RABBITMQ_USER:?set RABBITMQ_USER in .env}:${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}@rabbitmq-prod:5672/
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      EVOLUTION_URL: http://evolution-api:8080
+      EVOLUTION_URL: http://evolution-api:6026
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
       EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-}
     ports:
-      - "127.0.0.1:6025:8000"
+      - "6025:6025"
     networks: [default, infra]
     restart: unless-stopped
 
@@ -35,6 +36,7 @@ services:
     image: evoapicloud/evolution-api:latest
     environment:
       SERVER_URL: http://localhost:6026
+      SERVER_PORT: "6026"
       AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:?set EVOLUTION_API_KEY in .env}
       DATABASE_PROVIDER: postgresql
       DATABASE_CONNECTION_URI: postgresql://evolution:evolution@evolution-postgres:5432/evolution?schema=evolution_api
@@ -44,7 +46,7 @@ services:
       CACHE_REDIS_PREFIX_KEY: evolution
       CACHE_LOCAL_ENABLED: "false"
     ports:
-      - "127.0.0.1:6026:8080"
+      - "6026:6026"
     volumes:
       - evolution_instances:/evolution/instances
     depends_on:
