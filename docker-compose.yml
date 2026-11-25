@@ -5,6 +5,7 @@ services:
   notifier:
     build: .
     environment:
+      AMQP_URL: ${AMQP_URL}
       LOG_LEVEL: INFO
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       EVOLUTION_URL: http://evolution-api:6026
