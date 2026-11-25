@@ -15,7 +15,7 @@ RabbitMQ comes from the infrastructure repo (`rabbitmq-prod` on the external `in
 | Lookup API docs | http://127.0.0.1:6025/docs (LAN: http://192.168.1.190:6025/docs) |
 | Evolution manager | http://127.0.0.1:6026/manager (LAN: http://192.168.1.190:6026/manager) |
 
-Secrets live in `.env` (git-ignored): `TELEGRAM_BOT_TOKEN`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE`, and `RABBITMQ_USER` / `RABBITMQ_PASSWORD` (the infra RabbitMQ login; URL-encode special characters in the password). `EVOLUTION_API_KEY` is a value you choose (any long random string); Evolution starts with it as its global key. Compose refuses to start without it.
+Secrets live in `.env` (git-ignored): `TELEGRAM_BOT_TOKEN`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE`, `RABBITMQ_USER` / `RABBITMQ_PASSWORD` (the infra RabbitMQ login) and `POSTGRES_USER` / `POSTGRES_PASSWORD` (the infra Postgres login, used by Evolution; create database `evolution` there first). URL-encode special characters in passwords. `EVOLUTION_API_KEY` is a value you choose (any long random string); Evolution starts with it as its global key. Compose refuses to start without it.
 
 ## Link WhatsApp (once)
 

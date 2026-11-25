@@ -1,10 +1,10 @@
-# RabbitMQ is not defined here: the worker and API use the shared one from the infrastructure repo
-# (container rabbitmq-prod on the external "infra" network). Start infrastructure first.
+# RabbitMQ, Postgres and Redis are not defined here: services use the shared ones from the infrastructure
+# repo (rabbitmq-prod, postgres, redis on the external "infra" network). Start infrastructure first.
+# Evolution needs database "evolution" in infra Postgres: CREATE DATABASE evolution;
 services:
   notifier:
     build: .
     environment:
-      AMQP_URL: amqp://${RABBITMQ_USER:?set RABBITMQ_USER in .env}:${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}@rabbitmq-prod:5672/
       LOG_LEVEL: INFO
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       EVOLUTION_URL: http://evolution-api:6026
@@ -39,48 +39,23 @@ services:
       SERVER_PORT: "6026"
       AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:?set EVOLUTION_API_KEY in .env}
       DATABASE_PROVIDER: postgresql
-      DATABASE_CONNECTION_URI: postgresql://evolution:evolution@evolution-postgres:5432/evolution?schema=evolution_api
+      # Shared infra Postgres (container "postgres") and Redis (container "redis") on the infra network.
+      DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER:?set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/evolution?schema=evolution_api
       DATABASE_CONNECTION_CLIENT_NAME: evolution_exchange
       CACHE_REDIS_ENABLED: "true"
-      CACHE_REDIS_URI: redis://evolution-redis:6379/6
+      CACHE_REDIS_URI: redis://redis:6379/6
       CACHE_REDIS_PREFIX_KEY: evolution
       CACHE_LOCAL_ENABLED: "false"
     ports:
       - "6026:6026"
     volumes:
       - evolution_instances:/evolution/instances
-    depends_on:
-      evolution-postgres:
-        condition: service_healthy
-      evolution-redis:
-        condition: service_started
-    restart: unless-stopped
-
-  evolution-postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: evolution
-      POSTGRES_PASSWORD: evolution
-      POSTGRES_DB: evolution
-    volumes:
-      - evolution_pg:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U evolution"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-
-  evolution-redis:
-    image: redis:7
-    volumes:
-      - evolution_redis:/data
+    networks: [default, infra]
     restart: unless-stopped
 
 volumes:
   evolution_instances:
-  evolution_pg:
-  evolution_redis:
+
 
 networks:
   infra:
